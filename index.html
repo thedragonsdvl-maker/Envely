@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Envely Web</title>
-    <!-- Versiunea Compat pentru a rula perfect la dublu-click -->
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
@@ -81,7 +80,8 @@
                 </div>
             </div>
 
-            <button class="btn-orange">Câte zile muncesc pentru un obiect?</button>
+            <!-- Butonul activat pentru Calculator -->
+            <button class="btn-orange" id="btn-calculator-web">Câte zile muncesc pentru un obiect?</button>
 
             <h3 class="expenses-title">Ultimele Cheltuieli</h3>
             
@@ -95,7 +95,6 @@
 </div>
 
 <script>
-    // !!! PUNE AICI DATELE TALE DIN FIREBASE CONSOLE !!!
 const firebaseConfig = {
   apiKey: "AIzaSyCDPcD89E9pjIVPkdM8RgZRHVX2PhEMWG8",
   authDomain: "envely-53a52.firebaseapp.com",
@@ -105,7 +104,6 @@ const firebaseConfig = {
   appId: "1:122731302725:web:bffc1fe804e34ea6fff82c",
   measurementId: "G-0Y32LSPF8L"
 };
-
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -134,6 +132,24 @@ const firebaseConfig = {
 
     document.getElementById("btn-logout").addEventListener("click", () => {
         auth.signOut();
+    });
+
+    // Funcționalitatea Calculatorului pe Web
+    document.getElementById("btn-calculator-web").addEventListener("click", () => {
+        const venitStr = prompt("Câți bani faci pe zi? (Ex: 50)");
+        if (!venitStr) return;
+        const venit = parseFloat(venitStr);
+
+        const pretStr = prompt("Cât costă produsul dorit? (Lei)");
+        if (!pretStr) return;
+        const pret = parseFloat(pretStr);
+
+        if (venit > 0 && pret > 0) {
+            const zile = Math.ceil(pret / venit);
+            alert(`Pentru un produs de ${pret} Lei, trebuie să muncești ${zile} zile!`);
+        } else {
+            alert("Introdu valori valide mai mari decât 0!");
+        }
     });
 
     document.getElementById("btn-adauga-meniu").addEventListener("click", () => {
@@ -176,12 +192,10 @@ const firebaseConfig = {
     function incarcaDate(userId) {
         const userRef = db.collection("users").doc(userId);
         
-        // Preluăm numele real din baza de date (cum e setat pe telefon) și balanța corectă
         unsubscribeUser = userRef.onSnapshot((docSnap) => {
             if (docSnap.exists) {
                 const data = docSnap.data();
                 
-                // Setăm numele corect din baza de date
                 const numeDb = data.nume;
                 if (numeDb) {
                     document.getElementById("greeting-text").innerText = "Salut, " + numeDb + "!";
@@ -190,12 +204,10 @@ const firebaseConfig = {
                     document.getElementById("greeting-text").innerText = "Salut, " + emailName.charAt(0).toUpperCase() + emailName.slice(1) + "!";
                 }
 
-                // Setăm balanța exactă
                 document.getElementById("balance-display").innerText = (data.salariu || 0).toFixed(2) + " Lei";
             }
         });
 
-        // Preluăm cheltuielile reale din sub-colecția "cheltuieli"
         unsubscribeExpenses = userRef.collection("cheltuieli")
             .orderBy("data", "desc").limit(5)
             .onSnapshot((snapshot) => {
