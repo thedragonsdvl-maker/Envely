@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Envely Web</title>
+    <!-- Versiunea Compat pentru a rula perfect la dublu-click -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { margin: 0; padding: 0; background-color: #F5F5F5; display: flex; justify-content: center; }
+        
+        #app-container { width: 100%; max-width: 450px; background-color: #F5F5F5; min-height: 100vh; position: relative; }
+        
+        .header { background-color: #F5F5F5; text-align: center; padding: 15px 0; }
+        .header-title { color: #004D40; font-weight: bold; font-size: 16px; margin: 0;}
+        
+        .green-band { background-color: #004D40; height: 120px; width: 100%; }
+        
+        .main-sheet { background-color: white; border-radius: 24px 24px 0 0; padding: 24px; margin-top: -90px; min-height: calc(100vh - 120px); }
+        
+        .balance-card { border: 1px solid #E0E0E0; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+        .greeting { color: #004D40; font-size: 20px; font-weight: bold; margin: 0 0 16px 0; }
+        .balance-label { color: #555; font-size: 14px; margin-bottom: 8px; }
+        .balance-amount { font-size: 42px; font-weight: bold; color: black; margin: 0 0 24px 0; }
+        
+        .btn-row { display: flex; gap: 12px; }
+        .btn-green-half { flex: 1; background-color: #004D40; color: white; border: none; border-radius: 50px; padding: 14px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        
+        .btn-orange { width: 100%; background-color: #FF9800; color: white; border: none; border-radius: 50px; padding: 16px; font-size: 15px; font-weight: bold; margin-bottom: 24px; cursor: pointer; }
+        .btn-red { width: 100%; background-color: #F44336; color: white; border: none; border-radius: 50px; padding: 16px; font-size: 15px; font-weight: bold; margin-bottom: 24px; cursor: pointer; }
+        
+        .expenses-title { font-size: 16px; font-weight: bold; color: black; margin: 0 0 12px 4px; }
+        .expenses-card { border: 1px solid #E0E0E0; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+        .loading-text { text-align: center; color: #888; margin: 0; }
+        
+        .expense-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
+        .expense-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .expense-details strong { display: block; color: #333; font-size: 15px; }
+        .expense-details small { color: #777; font-size: 13px; }
+        .expense-price { color: #F44336; font-weight: bold; margin-right: 10px;}
+        .delete-btn { background: #ffebee; color: #F44336; border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-weight: bold; }
+
+        #login-screen { padding: 40px 24px; text-align: center; }
+        #login-screen h2 { color: #004D40; margin-bottom: 24px; }
+        .input-field { width: 100%; padding: 14px; margin-bottom: 16px; border: 1px solid #ccc; border-radius: 12px; font-size: 16px; }
+        .btn-green-full { width: 100%; background-color: #004D40; color: white; border: none; border-radius: 50px; padding: 16px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    
+    <div id="login-screen">
+        <h2>Conectare Envely</h2>
+        <input type="email" id="email" class="input-field" placeholder="Email">
+        <input type="password" id="password" class="input-field" placeholder="Parola">
+        <button id="btn-login" class="btn-green-full">Intră în cont</button>
+    </div>
+
+    <div id="app-screen" style="display: none;">
+        
+        <div class="header">
+            <p class="header-title">💸 Envely</p>
+        </div>
+        
+        <div class="green-band"></div>
+
+        <div class="main-sheet">
+            <div class="balance-card">
+                <h1 class="greeting" id="greeting-text">Salut!</h1>
+                <p class="balance-label">Balanța disponibilă</p>
+                <h2 class="balance-amount" id="balance-display">0.00 Lei</h2>
+                
+                <div class="btn-row">
+                    <button class="btn-green-half" id="btn-adauga-meniu">Adaugă</button>
+                    <button class="btn-green-half">Gestionează</button>
+                </div>
+            </div>
+
+            <button class="btn-orange">Câte zile muncesc pentru un obiect?</button>
+
+            <h3 class="expenses-title">Ultimele Cheltuieli</h3>
+            
+            <div class="expenses-card" id="expenses-list">
+                <p class="loading-text">Se încarcă...</p>
+            </div>
+
+            <button id="btn-logout" class="btn-red">Deconectare cont</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // !!! PUNE AICI DATELE TALE DIN FIREBASE CONSOLE !!!
+const firebaseConfig = {
+  apiKey: "AIzaSyCDPcD89E9pjIVPkdM8RgZRHVX2PhEMWG8",
+  authDomain: "envely-53a52.firebaseapp.com",
+  projectId: "envely-53a52",
+  storageBucket: "envely-53a52.firebasestorage.app",
+  messagingSenderId: "122731302725",
+  appId: "1:122731302725:web:bffc1fe804e34ea6fff82c",
+  measurementId: "G-0Y32LSPF8L"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const loginScreen = document.getElementById("login-screen");
+    const appScreen = document.getElementById("app-screen");
+    const expensesList = document.getElementById("expenses-list");
+
+    let currentUser = null;
+    let unsubscribeUser = null;
+    let unsubscribeExpenses = null;
+
+    document.getElementById("btn-login").addEventListener("click", () => {
+        const email = document.getElementById("email").value;
+        const pass = document.getElementById("password").value;
+        
+        if(!email || !pass) {
+            alert("Te rog introdu emailul și parola!");
+            return;
+        }
+
+        auth.signInWithEmailAndPassword(email, pass).catch(err => {
+            alert("Eroare la logare: " + err.message);
+        });
+    });
+
+    document.getElementById("btn-logout").addEventListener("click", () => {
+        auth.signOut();
+    });
+
+    document.getElementById("btn-adauga-meniu").addEventListener("click", () => {
+        const suma = prompt("Introdu suma cheltuită (Lei):");
+        if(suma && !isNaN(suma) && suma > 0) {
+            const desc = prompt("Ce ai cumpărat?");
+            if(desc && currentUser) {
+                const userRef = db.collection("users").doc(currentUser.uid);
+                
+                const batch = db.batch();
+                batch.set(userRef.collection("cheltuieli").doc(), {
+                    suma: parseFloat(suma),
+                    descriere: desc,
+                    categorie: "Altele",
+                    data: Date.now()
+                });
+                batch.update(userRef, { salariu: firebase.firestore.FieldValue.increment(-parseFloat(suma)) });
+                batch.commit().then(() => alert("Cheltuială adăugată!"));
+            }
+        }
+    });
+
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            currentUser = user;
+            loginScreen.style.display = "none";
+            appScreen.style.display = "block";
+            
+            incarcaDate(user.uid);
+        } else {
+            currentUser = null;
+            loginScreen.style.display = "block";
+            appScreen.style.display = "none";
+            
+            if (unsubscribeUser) unsubscribeUser();
+            if (unsubscribeExpenses) unsubscribeExpenses();
+        }
+    });
+
+    function incarcaDate(userId) {
+        const userRef = db.collection("users").doc(userId);
+        
+        // Preluăm numele real din baza de date (cum e setat pe telefon) și balanța corectă
+        unsubscribeUser = userRef.onSnapshot((docSnap) => {
+            if (docSnap.exists) {
+                const data = docSnap.data();
+                
+                // Setăm numele corect din baza de date
+                const numeDb = data.nume;
+                if (numeDb) {
+                    document.getElementById("greeting-text").innerText = "Salut, " + numeDb + "!";
+                } else {
+                    const emailName = currentUser.email.split("@")[0];
+                    document.getElementById("greeting-text").innerText = "Salut, " + emailName.charAt(0).toUpperCase() + emailName.slice(1) + "!";
+                }
+
+                // Setăm balanța exactă
+                document.getElementById("balance-display").innerText = (data.salariu || 0).toFixed(2) + " Lei";
+            }
+        });
+
+        // Preluăm cheltuielile reale din sub-colecția "cheltuieli"
+        unsubscribeExpenses = userRef.collection("cheltuieli")
+            .orderBy("data", "desc").limit(5)
+            .onSnapshot((snapshot) => {
+                expensesList.innerHTML = "";
+                if (snapshot.empty) {
+                    expensesList.innerHTML = '<p class="loading-text">Nu ai adăugat nicio cheltuială.</p>';
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const docId = docSnap.id;
+                    
+                    const div = document.createElement("div");
+                    div.className = "expense-item";
+                    div.innerHTML = `
+                        <div class="expense-details">
+                            <strong>${data.descriere || "Fără detalii"}</strong>
+                            <small>${data.categorie || "Altele"}</small>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span class="expense-price">-${data.suma} Lei</span>
+                            <button class="delete-btn" onclick="stergeCheltuiala('${docId}', ${data.suma})">X</button>
+                        </div>
+                    `;
+                    expensesList.appendChild(div);
+                });
+            });
+    }
+
+    window.stergeCheltuiala = function(docId, suma) {
+        if(!currentUser || !confirm("Sigur vrei să ștergi și să primești înapoi " + suma + " Lei?")) return;
+        
+        const userRef = db.collection("users").doc(currentUser.uid);
+        const batch = db.batch();
+        batch.delete(userRef.collection("cheltuieli").doc(docId));
+        batch.update(userRef, { salariu: firebase.firestore.FieldValue.increment(suma) });
+        batch.commit();
+    };
+</script>
+
+</body>
+</html>
